@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Repository;
+﻿using ExpenseTracker.API.Helpers;
+using ExpenseTracker.Repository;
 using ExpenseTracker.Repository.Factories;
 using Marvin.JsonPatch;
 using System;
@@ -17,23 +18,45 @@ namespace ExpenseTracker.API.Controllers
 
         public ExpenseGroupsController()
         {
-            _repository = new ExpenseTrackerEFRepository(new 
+            _repository = new ExpenseTrackerEFRepository(new
                 Repository.Entities.ExpenseTrackerContext());
         }
 
         public ExpenseGroupsController(IExpenseTrackerRepository repository)
         {
             _repository = repository;
-        }    
+        }
 
 
-        public IHttpActionResult Get()
+        public IHttpActionResult Get(string sort = "id", string status = null, string userId = null)
         {
             try
             {
+                int statusId = -1;
+                if (status != null)
+                {
+                    switch (status.ToLower())
+                    {
+                        case "open": statusId = 1;
+                            break;
+                        case "confirmed":
+                            statusId = 2;
+                            break;
+                        case "processed":
+                            statusId = 3;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
                 var expenseGroups = _repository.GetExpenseGroups();
 
-                return Ok(expenseGroups.ToList()
+                return Ok(expenseGroups
+                    .ApplySort(sort) //Grabbed system.linq.dynamic from nuget and added an extension IQueryableExtensions in helpers folder
+                    .Where(eg => (statusId == -1 || eg.ExpenseGroupStatusId == statusId))
+                    .Where(eg => (userId == null || eg.UserId == userId))
+                    .ToList()
                     .Select(eg => _expenseGroupFactory.CreateExpenseGroup(eg)));
 
             }
@@ -87,7 +110,7 @@ namespace ExpenseTracker.API.Controllers
                 return BadRequest();
             }
             catch (Exception)
-            {                
+            {
                 return InternalServerError();
             }
         }
@@ -110,7 +133,7 @@ namespace ExpenseTracker.API.Controllers
                     var updatedExpenseGroup = _expenseGroupFactory.CreateExpenseGroup(result.Entity);
                     return Ok(updatedExpenseGroup);
                 }
-                else if(result.Status == RepositoryActionStatus.NotFound)
+                else if (result.Status == RepositoryActionStatus.NotFound)
                 {
                     return NotFound();
                 }
@@ -173,7 +196,7 @@ namespace ExpenseTracker.API.Controllers
                 {
                     return StatusCode(HttpStatusCode.NoContent);
                 }
-                else if(result.Status == RepositoryActionStatus.NotFound)
+                else if (result.Status == RepositoryActionStatus.NotFound)
                 {
                     return NotFound();
                 }
