@@ -1,6 +1,7 @@
 ﻿using ExpenseTracker.DTO;
 using ExpenseTracker.WebClient.Helpers;
 using ExpenseTracker.WebClient.Models;
+using Marvin.JsonPatch;
 using Newtonsoft.Json;
 using PagedList;
 using System;
@@ -62,9 +63,21 @@ namespace ExpenseTracker.WebClient.Controllers
 
 
         // GET: ExpenseGroups/Details/5
-        public ActionResult Details(int id)
+        public async Task<ActionResult> Details(int id)
         {
-            return Content("Not implemented yet.");
+            var client = ExpenseTrackerHttpClient.GetClient();
+
+            HttpResponseMessage response = await client.GetAsync("api/expensegroups/" + id
+                                + "?fields=id,description,title,expenses");
+            string content = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var model = JsonConvert.DeserializeObject<ExpenseGroup>(content);
+                return View(model);
+            }
+
+            return Content("An error occurred");
         }
 
         // GET: ExpenseGroups/Create
@@ -114,7 +127,8 @@ namespace ExpenseTracker.WebClient.Controllers
         {
             var client = ExpenseTrackerHttpClient.GetClient();
 
-            var response = await client.GetAsync("api/expensegroups/" + id);
+            var response = await client.GetAsync("api/expensegroups/" + id
+                + "?fields=id,title,description");
 
             if (response.IsSuccessStatusCode)
             {
@@ -137,13 +151,17 @@ namespace ExpenseTracker.WebClient.Controllers
             try
             {
                 var client = ExpenseTrackerHttpClient.GetClient();
-             
-                var serializedItemToUpdate = JsonConvert.SerializeObject(expenseGroup);
 
-                var response = await client.PutAsync("api/expensegroups/" + id,
-                    new StringContent(serializedItemToUpdate,
-                        System.Text.Encoding.Unicode,
-                        "application/json"));
+                JsonPatchDocument<DTO.ExpenseGroup> patchDoc = new JsonPatchDocument<ExpenseGroup>();
+                patchDoc.Replace(eg => eg.Title, expenseGroup.Title);
+                patchDoc.Replace(eg => eg.Description, expenseGroup.Description);
+
+                var serializedItemToUpdate = JsonConvert.SerializeObject(patchDoc);
+
+                var response = await client.PatchAsync("api/expensegroups/" + id,
+                    new StringContent(serializedItemToUpdate, System.Text.Encoding.Unicode, "application/json"));
+
+              
 
                 if (response.IsSuccessStatusCode)
                 {
