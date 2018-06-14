@@ -15,7 +15,10 @@ namespace ExpenseTracker.IdSrv.Config
                     ClientName = "ExpenseTracker MVC Client (Hybrid Flow)",
                     ClientId = "mvc",
                     Flow = Flows.Hybrid,
-                    RequireConsent = true
+                    RequireConsent = true,
+
+                    RedirectUris = new List<string>
+                    {ExpenseTrackerConstants.ExpenseTrackerClient}
                 }
             };
         }
